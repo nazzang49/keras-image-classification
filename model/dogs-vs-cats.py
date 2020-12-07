@@ -4,7 +4,6 @@ from keras.preprocessing.image import ImageDataGenerator
 from keras.models import Sequential
 from keras.layers import Conv2D, MaxPooling2D, Dense, Flatten, Dropout, BatchNormalization
 from keras.callbacks import EarlyStopping, ReduceLROnPlateau
-import random
 import numpy as np
 import os
 import pandas as pd
@@ -27,12 +26,13 @@ df = pd.DataFrame({
 
 print(df.head())
 print(df.tail())
-df['category'].value_counts().plot.bar()
+print(df['category'].value_counts())
 
 # make basic CNN model
 def make_cnn_model():
     model = Sequential()
 
+    # feature extraction
     model.add(Conv2D(32, (3, 3), activation='relu', input_shape=(128, 128, 3)))
     model.add(BatchNormalization())
     model.add(MaxPooling2D(pool_size=(2, 2)))
@@ -48,6 +48,7 @@ def make_cnn_model():
     model.add(MaxPooling2D(pool_size=(2, 2)))
     model.add(Dropout(0.25))
 
+    # classifier
     model.add(Flatten())
     model.add(Dense(512, activation='relu'))
     model.add(BatchNormalization())
@@ -60,12 +61,14 @@ def make_cnn_model():
     return model
 
 model = make_cnn_model()
+
+# early stop when unless performance is enhanced
 earlystop = EarlyStopping(patience=10)
 
 # reduce the learning rate unless accuracy increase for 2steps
 learning_rate_reduction = ReduceLROnPlateau(monitor='val_acc',
                                             patience=2,
-                                            verbose=1,
+                                            verbose=1,      # verbose = 1 => want to track learning process at console
                                             factor=0.5,
                                             min_lr=0.00001)
 
@@ -79,8 +82,10 @@ validate_df = validate_df.reset_index(drop=True)
 
 total_train = train_df.shape[0]
 total_validate = validate_df.shape[0]
-batch_size=15
+# 15 at first
+batch_size = 32
 
+# augmentation
 train_datagen = ImageDataGenerator(
     rotation_range=15,
     rescale=1./255,
@@ -94,7 +99,7 @@ train_datagen = ImageDataGenerator(
 train_generator = train_datagen.flow_from_dataframe(
     train_df,
     "C:/dogs-vs-cats/train",
-    x_col='filename',
+    x_col='filename',   # image filename in directory
     y_col='category',
     target_size=(128, 128),
     class_mode='categorical',
@@ -122,6 +127,7 @@ example_generator = train_datagen.flow_from_dataframe(
     class_mode='categorical'
 )
 
+# learning start
 epochs = 50
 history = model.fit_generator(
     train_generator,
@@ -144,10 +150,10 @@ nb_samples = test_df.shape[0]
 test_gen = ImageDataGenerator(rescale=1./255)
 test_generator = test_gen.flow_from_dataframe(
     test_df,
-    "../input/test1/test1/",
+    "C:/dogs-vs-cats/test",
     x_col='filename',
-    y_col=None,
-    class_mode=None,
+    y_col=None,         # now we will predict these values
+    class_mode=None,    # now we will predict these values
     target_size=(128, 128),
     batch_size=batch_size,
     shuffle=False
